@@ -1,3 +1,5 @@
+//for telling type of api response 
+
 import { Message } from "@/models/User";
 
 export interface ApiResponse{

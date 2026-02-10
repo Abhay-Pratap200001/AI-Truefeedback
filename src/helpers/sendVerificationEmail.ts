@@ -1,3 +1,5 @@
+//used to send verification email to user
+
 import { resend } from "@/lib/resend";
 import VerificationEmail from "../../emails/VerificationEmail";
 import { ApiResponse } from "@/types/ApiResponse";
@@ -9,7 +11,7 @@ export async function sendVerificationEmail(
 ): Promise<ApiResponse> {
   try {
     
-await resend.emails.send({
+await resend.emails.send({  //sending the mail
   from: 'onboarding@resend.dev',
       to: email,
   subject: 'Verification email',

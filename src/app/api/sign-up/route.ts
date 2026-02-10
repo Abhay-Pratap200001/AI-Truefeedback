@@ -1,18 +1,19 @@
-import bcrypt from "bcryptjs";
+//signup route used to signup user for first time
 
+import bcrypt from "bcryptjs";
 import { sendVerificationEmail } from "@/helpers/sendVerificationEmail";
 import dbConnect from "@/lib/dbConnect";
 import UserModel from "@/models/User";
+
 
 export async function POST(request: Request) {
   await dbConnect();
 
   try {
-    const { username, email, password } = await request.json();
-    const existingUserVerifiedByUsername = await UserModel.findOne({
-      username,
-      isVerified: true,
-    });
+    const { username, email, password } = await request.json();     //accepting values from req.json
+    const existingUserVerifiedByUsername = await UserModel.findOne({username, isVerified: true});  //finding user into db and isVerified
+
+    //if user already exist send the response sucess false because user already exits
     if (existingUserVerifiedByUsername) {
       return Response.json(
         {
@@ -23,10 +24,13 @@ export async function POST(request: Request) {
       );
     }
 
-    const existingUserByEmail = await UserModel.findOne({ email });
-    const verifyCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+    const existingUserByEmail = await UserModel.findOne({ email }); // finding user by email
+    const verifyCode = Math.floor(100000 + Math.random() * 900000).toString(); //creting verified code otp for verification
+
     if (existingUserByEmail) {
-      if (existingUserVerifiedByUsername) {
+      
+      if (existingUserByEmail.isVerified) { //if there is user in db with email and verification
         return Response.json(
           {
             success: false,
@@ -34,19 +38,30 @@ export async function POST(request: Request) {
           },
           { status: 500 },
         );
-      } else {
+        
+      } else {  //if user is exist but it not verifed on that senariouse we have to verify the user
+
+        //we are overwriting the existing password
         const hashedPassword = await bcrypt.hash(password, 7);
-        existingUserByEmail.password = hashedPassword;
-        existingUserByEmail.verifyCode = verifyCode;
+        existingUserByEmail.password = hashedPassword; //
+        //
+
+        existingUserByEmail.verifyCode = verifyCode; //updating verifyCode
+        
         existingUserByEmail.verifyCodeExpiry = new Date(Date.now() + 3600000);
         await existingUserByEmail.save();
       }
-    } else {
-      const hasedPassword = await bcrypt.hash(password, 7);
-      const expiryDate = new Date();
-      expiryDate.setHours(expiryDate.getHours() + 1);
 
-      const newUser = new UserModel({
+    } else {  //if user is not into db then we follow this algorithm
+
+      const hasedPassword = await bcrypt.hash(password, 7);  //hashed/ the password
+
+      // expiring the verifycode date after one hour
+      const expiryDate = new Date();  
+      expiryDate.setHours(expiryDate.getHours() + 1);
+      //
+
+      const newUser = new UserModel({  //saving the user
         username,
         email,
         password: hasedPassword,
@@ -59,13 +74,11 @@ export async function POST(request: Request) {
       await newUser.save();
     }
 
-    const emailResponse = await sendVerificationEmail(
-      email,
-      username,
-      verifyCode,
-    );
 
-    if (!emailResponse.success) {
+    // sending emailresponse to user 
+    const emailResponse = await sendVerificationEmail(email, username, verifyCode); 
+
+    if (!emailResponse.success) { //if response got failed 
       return Response.json(
         {
           success: false,
@@ -75,6 +88,7 @@ export async function POST(request: Request) {
       );
     }
 
+    //if response successfully resolve
     return Response.json(
       {
         success: true,
@@ -82,6 +96,7 @@ export async function POST(request: Request) {
       },
       { status: 201 },
     );
+
   } catch (error) {
     console.error("Error while registering user", error);
     return Response.json(
